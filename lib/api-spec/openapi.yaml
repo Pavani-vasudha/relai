@@ -3,13 +3,28 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI Asset Validator API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User management
+  - name: projects
+    description: Project management
+  - name: config
+    description: Project configuration
+  - name: validation
+    description: Asset validation
+  - name: observability
+    description: Observability and metrics
+  - name: prompts
+    description: System prompts management
+
 paths:
   /healthz:
     get:
@@ -24,7 +39,480 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Sign up
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}:
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: User deleted
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project with stats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project with stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectWithStats"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects/{id}/config:
+    get:
+      operationId: getProjectConfig
+      tags: [config]
+      summary: Get project configuration
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectConfig"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: upsertProjectConfig
+      tags: [config]
+      summary: Create or update project configuration
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertProjectConfigBody"
+      responses:
+        "200":
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectConfig"
+
+  /validate:
+    post:
+      operationId: validateAsset
+      tags: [validation]
+      summary: Validate an asset
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateAssetBody"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /validations:
+    get:
+      operationId: listValidations
+      tags: [validation]
+      summary: List asset validations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: result
+          in: query
+          schema:
+            type: ["string", "null"]
+            enum: ["PASS", "FAIL", null]
+      responses:
+        "200":
+          description: List of validations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssetValidation"
+
+  /observability:
+    get:
+      operationId: getObservability
+      tags: [observability]
+      summary: Get observability data with metrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: result
+          in: query
+          schema:
+            type: ["string", "null"]
+            enum: ["PASS", "FAIL", null]
+      responses:
+        "200":
+          description: Observability data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObservabilityResponse"
+
+  /prompts:
+    get:
+      operationId: listPrompts
+      tags: [prompts]
+      summary: List system prompts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of prompts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SystemPrompt"
+    post:
+      operationId: createPrompt
+      tags: [prompts]
+      summary: Create a system prompt (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromptBody"
+      responses:
+        "201":
+          description: Prompt created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemPrompt"
+
+  /prompts/{id}:
+    put:
+      operationId: updatePrompt
+      tags: [prompts]
+      summary: Update a system prompt (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePromptBody"
+      responses:
+        "200":
+          description: Prompt updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemPrompt"
+    delete:
+      operationId: deletePrompt
+      tags: [prompts]
+      summary: Delete a system prompt (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Prompt deleted
+
+  /prompts/{id}/activate:
+    post:
+      operationId: activatePrompt
+      tags: [prompts]
+      summary: Set a prompt as active for its modality (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Prompt activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemPrompt"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +522,421 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SignupBody:
+      type: object
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - fullName
+        - email
+        - password
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        createdBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - fullName
+        - email
+        - role
+        - createdAt
+
+    CreateUserBody:
+      type: object
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+      required:
+        - fullName
+        - email
+        - password
+        - role
+
+    UpdateUserBody:
+      type: object
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        password:
+          type: ["string", "null"]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [image, text, audio, video]
+        userId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - type
+        - userId
+        - createdAt
+
+    ProjectWithStats:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [image, text, audio, video]
+        userId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        totalAssets:
+          type: integer
+        validatedAssets:
+          type: integer
+        passCount:
+          type: integer
+        passPercent:
+          type: number
+        totalTokens:
+          type: integer
+        totalCost:
+          type: number
+        avgLatency:
+          type: number
+      required:
+        - id
+        - name
+        - type
+        - userId
+        - createdAt
+        - totalAssets
+        - validatedAssets
+        - passCount
+        - passPercent
+        - totalTokens
+        - totalCost
+        - avgLatency
+
+    CreateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [image, text, audio, video]
+      required:
+        - name
+        - type
+
+    ProjectConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        validationRules:
+          type: string
+        enableDuplicationCheck:
+          type: boolean
+        enablePIIValidation:
+          type: boolean
+        enableBlurCheck:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - validationRules
+        - enableDuplicationCheck
+        - enablePIIValidation
+        - enableBlurCheck
+        - updatedAt
+
+    UpsertProjectConfigBody:
+      type: object
+      properties:
+        validationRules:
+          type: string
+        enableDuplicationCheck:
+          type: boolean
+        enablePIIValidation:
+          type: boolean
+        enableBlurCheck:
+          type: boolean
+
+    ValidateAssetBody:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        assetName:
+          type: string
+        assetContent:
+          type: string
+        assetType:
+          type: string
+          enum: [image, text, audio, video]
+        validationRules:
+          type: ["string", "null"]
+        promptOverride:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+      required:
+        - projectId
+        - assetName
+        - assetContent
+        - assetType
+
+    ValidationResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [PASS, FAIL]
+        reasons:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: number
+        tokensUsed:
+          type: integer
+        cost:
+          type: number
+        latency:
+          type: integer
+        rawResponse:
+          type: string
+        preCheckResults:
+          type: object
+          properties:
+            blurScore:
+              type: ["number", "null"]
+            isDuplicate:
+              type: boolean
+            piiDetected:
+              type: boolean
+            piiItems:
+              type: array
+              items:
+                type: string
+          required:
+            - isDuplicate
+            - piiDetected
+            - piiItems
+      required:
+        - id
+        - status
+        - reasons
+        - confidence
+        - tokensUsed
+        - cost
+        - latency
+        - rawResponse
+        - preCheckResults
+
+    AssetValidation:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: string
+        assetName:
+          type: string
+        validationResult:
+          type: string
+          enum: [PASS, FAIL]
+        reasons:
+          type: array
+          items:
+            type: string
+        tokensUsed:
+          type: integer
+        cost:
+          type: number
+        latency:
+          type: integer
+        confidence:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - projectName
+        - assetName
+        - validationResult
+        - reasons
+        - tokensUsed
+        - cost
+        - latency
+        - confidence
+        - createdAt
+
+    ObservabilityResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssetValidation"
+        metrics:
+          type: object
+          properties:
+            totalCost:
+              type: number
+            totalTokens:
+              type: integer
+            avgLatency:
+              type: number
+            totalRecords:
+              type: integer
+            passCount:
+              type: integer
+            failCount:
+              type: integer
+          required:
+            - totalCost
+            - totalTokens
+            - avgLatency
+            - totalRecords
+            - passCount
+            - failCount
+      required:
+        - records
+        - metrics
+
+    SystemPrompt:
+      type: object
+      properties:
+        id:
+          type: integer
+        modality:
+          type: string
+          enum: [image, text, audio, video]
+        version:
+          type: string
+        prompt:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - modality
+        - version
+        - prompt
+        - isActive
+        - createdAt
+
+    CreatePromptBody:
+      type: object
+      properties:
+        modality:
+          type: string
+          enum: [image, text, audio, video]
+        version:
+          type: string
+        prompt:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - modality
+        - version
+        - prompt
+
+    UpdatePromptBody:
+      type: object
+      properties:
+        modality:
+          type: string
+          enum: [image, text, audio, video]
+        version:
+          type: string
+        prompt:
+          type: string
+        isActive:
+          type: boolean

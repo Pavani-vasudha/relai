@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "AI Asset Validator"
+version = "1.0.0"
+id = "artifacts/ai-asset-validator"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19576
+
+[services.development]
+run = "pnpm --filter @workspace/ai-asset-validator run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ai-asset-validator", "run", "build" ]
+publicDir = "artifacts/ai-asset-validator/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19576"
+BASE_PATH = "/"

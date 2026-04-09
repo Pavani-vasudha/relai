@@ -1,0 +1,81 @@
+import { Router } from "express";
+import { db, projectsTable, assetValidationsTable } from "@workspace/db";
+import { eq, and, count, sum, avg } from "drizzle-orm";
+import { CreateProjectBody, GetProjectParams } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/auth";
+
+const router = Router();
+
+router.get("/projects", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.auth!.userId;
+  const role = req.auth!.role;
+
+  const projects = role === "admin"
+    ? await db.select().from(projectsTable).orderBy(projectsTable.createdAt)
+    : await db.select().from(projectsTable).where(eq(projectsTable.userId, userId)).orderBy(projectsTable.createdAt);
+
+  res.json(projects);
+});
+
+router.post("/projects", requireAuth, async (req, res): Promise<void> => {
+  const parsed = CreateProjectBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [project] = await db
+    .insert(projectsTable)
+    .values({ ...parsed.data, userId: req.auth!.userId })
+    .returning();
+  res.status(201).json(project);
+});
+
+router.get("/projects/:id", requireAuth, async (req, res): Promise<void> => {
+  const params = GetProjectParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, params.data.id)).limit(1);
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  // Compute stats
+  const [stats] = await db
+    .select({
+      totalAssets: count(assetValidationsTable.id),
+      totalTokens: sum(assetValidationsTable.tokensUsed),
+      totalCost: sum(assetValidationsTable.cost),
+      avgLatency: avg(assetValidationsTable.latency),
+    })
+    .from(assetValidationsTable)
+    .where(eq(assetValidationsTable.projectId, params.data.id));
+
+  const [passStats] = await db
+    .select({ passCount: count(assetValidationsTable.id) })
+    .from(assetValidationsTable)
+    .where(and(
+      eq(assetValidationsTable.projectId, params.data.id),
+      eq(assetValidationsTable.validationResult, "PASS")
+    ));
+
+  const totalAssets = Number(stats?.totalAssets ?? 0);
+  const passCount = Number(passStats?.passCount ?? 0);
+  const passPercent = totalAssets > 0 ? Math.round((passCount / totalAssets) * 100 * 10) / 10 : 0;
+
+  res.json({
+    ...project,
+    totalAssets,
+    validatedAssets: totalAssets,
+    passCount,
+    passPercent,
+    totalTokens: Number(stats?.totalTokens ?? 0),
+    totalCost: Math.round(Number(stats?.totalCost ?? 0) * 1_000_000) / 1_000_000,
+    avgLatency: Math.round(Number(stats?.avgLatency ?? 0)),
+  });
+});
+
+export default router;
