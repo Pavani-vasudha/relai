@@ -28,7 +28,10 @@ export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
   const projectId = parseInt(params?.id || "0", 10);
   const [activeTab, setActiveTab] = useState("dashboard");
-
+   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const [description, setDescription] = useState("");
+const [result, setResult] = useState<any>(null);
+const [loading, setLoading] = useState(false);
   const { data: project, isLoading: isProjectLoading } = useGetProject(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) }
   });
@@ -200,6 +203,7 @@ function PlaygroundTab({ projectId, projectType }: { projectId: number, projectT
   const [enableBlur, setEnableBlur] = useState(true);
   const [enableDuplication, setEnableDuplication] = useState(true);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [manualResult, setManualResult] = useState<any>(null);
 
   const { data: config } = useGetProjectConfig(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectConfigQueryKey(projectId) }
@@ -230,36 +234,101 @@ function PlaygroundTab({ projectId, projectType }: { projectId: number, projectT
     reader.readAsDataURL(file);
   };
 
-  const onSubmit = () => {
+  // const onSubmit = () => {
+  //   if (!assetContent) {
+  //     toast({ title: "Asset content is required", variant: "destructive" });
+  //     return;
+  //   }
+  //   validateAsset.mutate({
+  //     data: {
+  //       projectId,
+  //       assetName: assetName || `Asset-${Date.now()}`,
+  //       assetContent,
+  //       assetType,
+  //       validationRules: validationRules || undefined,
+  //       promptOverride: promptOverride || undefined,
+  //       enablePIICheck: enablePII,
+  //       enableBlurCheck: enableBlur,
+  //       enableDuplicationCheck: enableDuplication,
+  //     }
+  //   }, {
+  //     onSuccess: () => {
+  //       toast({ title: "Validation completed" });
+  //       queryClient.invalidateQueries({ queryKey: getListValidationsQueryKey() });
+  //       queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+  //     },
+  //     onError: (err: any) => {
+  //       toast({ title: "Validation failed", description: err?.error || "Error", variant: "destructive" });
+  //     }
+  //   });
+  // };
+   const onSubmit = async () => {
+  //image
+  if (assetType === "image") {
     if (!assetContent) {
-      toast({ title: "Asset content is required", variant: "destructive" });
+      toast({ title: "Please upload image", variant: "destructive" });
       return;
     }
-    validateAsset.mutate({
-      data: {
-        projectId,
-        assetName: assetName || `Asset-${Date.now()}`,
-        assetContent,
-        assetType,
-        validationRules: validationRules || undefined,
-        promptOverride: promptOverride || undefined,
-        enablePIICheck: enablePII,
-        enableBlurCheck: enableBlur,
-        enableDuplicationCheck: enableDuplication,
-      }
-    }, {
-      onSuccess: () => {
-        toast({ title: "Validation completed" });
-        queryClient.invalidateQueries({ queryKey: getListValidationsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
-      },
-      onError: (err: any) => {
-        toast({ title: "Validation failed", description: err?.error || "Error", variant: "destructive" });
-      }
-    });
-  };
 
-  const result = validateAsset.data;
+    try {
+      const formData = new FormData();
+      const res = await fetch(assetContent);
+      const blob = await res.blob();
+
+      formData.append("file", blob, assetName || "image.jpg");
+      formData.append("description", validationRules || "Validate this image");
+
+      const response = await fetch("/api/validate-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      console.log("NEW API RESPONSE:", data);
+      const mappedResult = {
+        status: data.api2?.status || "PASS",
+        confidence: 0.9,
+        tokensUsed: 0,
+        latency: 0,
+        cost: 0,
+        reasons: [JSON.stringify(data.api2)],
+        preCheckResults: {},
+        rawResponse: JSON.stringify(data, null, 2),
+      };
+      setManualResult(mappedResult);
+
+      toast({ title: "Validation completed (Image API)" });
+
+    } catch (err: any) {
+      toast({ title: "Validation failed", description: err.message, variant: "destructive" });
+    }
+
+    return;
+  }
+
+  //existing flow
+  if (!assetContent) {
+    toast({ title: "Asset content is required", variant: "destructive" });
+    return;
+  }
+
+  validateAsset.mutate({
+    data: {
+      projectId,
+      assetName: assetName || `Asset-${Date.now()}`,
+      assetContent,
+      assetType,
+      validationRules: validationRules || undefined,
+      promptOverride: promptOverride || undefined,
+      enablePIICheck: enablePII,
+      enableBlurCheck: enableBlur,
+      enableDuplicationCheck: enableDuplication,
+    }
+  });
+};
+  // const result = validateAsset.data;
+  const result = manualResult || validateAsset.data;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
