@@ -20,7 +20,8 @@ router.post("/validate", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { projectId, assetName, assetContent, assetType, validationRules, promptOverride, model } = parsed.data;
+  const { projectId, assetName, assetContent, assetType, validationRules, promptOverride, model,
+    enablePIICheck, enableBlurCheck, enableDuplicationCheck } = parsed.data;
 
   // Load project config for pre-check settings
   const [config] = await db
@@ -29,9 +30,10 @@ router.post("/validate", requireAuth, async (req, res): Promise<void> => {
     .where(eq(projectConfigsTable.projectId, projectId))
     .limit(1);
 
-  const enableDuplication = config?.enableDuplicationCheck ?? false;
-  const enablePII = config?.enablePIIValidation ?? false;
-  const enableBlur = config?.enableBlurCheck ?? false;
+  // Per-request overrides take precedence over project config
+  const enableDuplication = enableDuplicationCheck ?? config?.enableDuplicationCheck ?? false;
+  const enablePII = enablePIICheck ?? config?.enablePIIValidation ?? false;
+  const enableBlur = enableBlurCheck ?? config?.enableBlurCheck ?? false;
 
   // Step 1: Pre-checks
   const contentHash = hashContent(assetContent);
@@ -128,6 +130,8 @@ router.get("/validations", requireAuth, async (req, res): Promise<void> => {
       cost: assetValidationsTable.cost,
       latency: assetValidationsTable.latency,
       confidence: assetValidationsTable.confidence,
+      rawResponse: assetValidationsTable.rawResponse,
+      preCheckResults: assetValidationsTable.preCheckResults,
       createdAt: assetValidationsTable.createdAt,
     })
     .from(assetValidationsTable)

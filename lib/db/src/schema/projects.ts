@@ -7,6 +7,7 @@ export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   type: text("type", { enum: ["image", "text", "audio", "video"] }).notNull(),
+  storageFolderLink: text("storage_folder_link"),
   userId: integer("user_id").notNull().references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

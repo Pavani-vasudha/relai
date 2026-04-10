@@ -11,12 +11,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Image, FileText, Mic, Video, Loader2 } from "lucide-react";
+import { Plus, Image, FileText, Mic, Video, Loader2, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 
 const createProjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["image", "text", "audio", "video"]),
+  storageFolderLink: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 type CreateProjectForm = z.infer<typeof createProjectSchema>;
@@ -42,14 +43,21 @@ export default function Projects() {
 
   const form = useForm<CreateProjectForm>({
     resolver: zodResolver(createProjectSchema),
-    defaultValues: { name: "", type: "text" },
+    defaultValues: { name: "", type: "text", storageFolderLink: "" },
   });
 
   const onSubmit = (data: CreateProjectForm) => {
-    createProject.mutate({ data }, {
+    createProject.mutate({
+      data: {
+        name: data.name,
+        type: data.type,
+        storageFolderLink: data.storageFolderLink || null,
+      }
+    }, {
       onSuccess: (newProject) => {
         queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
         setIsDialogOpen(false);
+        form.reset();
         toast({ title: "Project created" });
         setLocation(`/projects/${newProject.id}`);
       },
@@ -64,7 +72,7 @@ export default function Projects() {
           <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground mt-1">Manage your validation workspaces.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(v) => { setIsDialogOpen(v); if (!v) form.reset(); }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -113,6 +121,29 @@ export default function Projects() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="storageFolderLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Assets Storage Folder Link{" "}
+                        <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="https://drive.google.com/drive/folders/..."
+                            className="pl-9"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type="submit" className="w-full" disabled={createProject.isPending}>
                   {createProject.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Create Project
@@ -150,6 +181,9 @@ export default function Projects() {
                   <h3 className="font-semibold text-lg truncate mb-1 group-hover:text-primary transition-colors">
                     {project.name}
                   </h3>
+                  {project.storageFolderLink && (
+                    <p className="text-xs text-primary truncate mb-1">Has storage folder</p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Created {format(new Date(project.createdAt), 'MMM d, yyyy')}
                   </p>

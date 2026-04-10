@@ -11,6 +11,7 @@ export interface Project {
   id: number;
   name: string;
   type: ProjectType;
+  storageFolderLink?: string | null;
   userId: number;
   createdAt: Date;
 }

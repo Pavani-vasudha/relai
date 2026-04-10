@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, systemPromptsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { CreatePromptBody, UpdatePromptParams, UpdatePromptBody, DeletePromptParams, ActivatePromptParams } from "@workspace/api-zod";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+
+const MAX_VERSIONS_PER_MODALITY = 5;
 
 const router = Router();
 
@@ -21,7 +23,6 @@ router.post("/prompts", requireAuth, requireAdmin, async (req, res): Promise<voi
   const { modality, version, prompt, isActive } = parsed.data;
 
   if (isActive) {
-    // Deactivate other prompts for this modality
     await db
       .update(systemPromptsTable)
       .set({ isActive: false })
@@ -35,6 +36,22 @@ router.post("/prompts", requireAuth, requireAdmin, async (req, res): Promise<voi
     .insert(systemPromptsTable)
     .values({ modality, version, prompt, isActive: isActive ?? false })
     .returning();
+
+  // Enforce max 5 versions per modality — delete oldest (inactive) if over limit
+  const allVersions = await db
+    .select({ id: systemPromptsTable.id, isActive: systemPromptsTable.isActive })
+    .from(systemPromptsTable)
+    .where(eq(systemPromptsTable.modality, modality))
+    .orderBy(asc(systemPromptsTable.createdAt));
+
+  if (allVersions.length > MAX_VERSIONS_PER_MODALITY) {
+    const toDelete = allVersions
+      .filter(v => !v.isActive)
+      .slice(0, allVersions.length - MAX_VERSIONS_PER_MODALITY);
+    for (const v of toDelete) {
+      await db.delete(systemPromptsTable).where(eq(systemPromptsTable.id, v.id));
+    }
+  }
 
   res.status(201).json(created);
 });

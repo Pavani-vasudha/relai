@@ -10,4 +10,6 @@ import type { CreateProjectBodyType } from "./createProjectBodyType";
 export interface CreateProjectBody {
   name: string;
   type: CreateProjectBodyType;
+  /** @nullable */
+  storageFolderLink?: string | null;
 }

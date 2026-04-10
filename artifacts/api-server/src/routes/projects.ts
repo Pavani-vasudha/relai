@@ -25,7 +25,12 @@ router.post("/projects", requireAuth, async (req, res): Promise<void> => {
   }
   const [project] = await db
     .insert(projectsTable)
-    .values({ ...parsed.data, userId: req.auth!.userId })
+    .values({ 
+      name: parsed.data.name, 
+      type: parsed.data.type, 
+      storageFolderLink: parsed.data.storageFolderLink ?? null,
+      userId: req.auth!.userId 
+    })
     .returning();
   res.status(201).json(project);
 });

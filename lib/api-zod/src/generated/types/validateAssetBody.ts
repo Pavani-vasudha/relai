@@ -18,4 +18,10 @@ export interface ValidateAssetBody {
   promptOverride?: string | null;
   /** @nullable */
   model?: string | null;
+  /** @nullable */
+  enablePIICheck?: boolean | null;
+  /** @nullable */
+  enableBlurCheck?: boolean | null;
+  /** @nullable */
+  enableDuplicationCheck?: boolean | null;
 }

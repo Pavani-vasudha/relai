@@ -127,6 +127,7 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 export const CreateProjectBody = zod.object({
   name: zod.string(),
   type: zod.enum(["image", "text", "audio", "video"]),
+  storageFolderLink: zod.string().nullish(),
 });
 
 /**
@@ -203,6 +204,9 @@ export const ValidateAssetBody = zod.object({
   validationRules: zod.string().nullish(),
   promptOverride: zod.string().nullish(),
   model: zod.string().nullish(),
+  enablePIICheck: zod.boolean().nullish(),
+  enableBlurCheck: zod.boolean().nullish(),
+  enableDuplicationCheck: zod.boolean().nullish(),
 });
 
 export const ValidateAssetResponse = zod.object({
@@ -243,6 +247,8 @@ export const ListValidationsResponseItem = zod.object({
   cost: zod.number(),
   latency: zod.number(),
   confidence: zod.number(),
+  rawResponse: zod.string().optional(),
+  preCheckResults: zod.record(zod.unknown()).optional(),
   createdAt: zod.coerce.date(),
 });
 export const ListValidationsResponse = zod.array(ListValidationsResponseItem);
