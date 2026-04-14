@@ -28,7 +28,7 @@ export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
   const projectId = parseInt(params?.id || "0", 10);
   const [activeTab, setActiveTab] = useState("dashboard");
-   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  //  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 const [description, setDescription] = useState("");
 const [result, setResult] = useState<any>(null);
 const [loading, setLoading] = useState(false);
@@ -194,6 +194,7 @@ function DashboardTab({ projectId }: { projectId: number }) {
 }
 
 function PlaygroundTab({ projectId, projectType }: { projectId: number, projectType: "image" | "text" | "audio" | "video" }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [assetType, setAssetType] = useState<any>(projectType || "text");
   const [assetContent, setAssetContent] = useState("");
   const [assetName, setAssetName] = useState("");
@@ -226,6 +227,7 @@ function PlaygroundTab({ projectId, projectType }: { projectId: number, projectT
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     setAssetName(file.name);
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -266,18 +268,22 @@ function PlaygroundTab({ projectId, projectType }: { projectId: number, projectT
   //image
   // if (assetType === "image") {
   if (assetType) {
-    if (!assetContent) {
-      toast({ title: "Please upload asset", variant: "destructive" });
-      return;
-    }
+    // if (!selectedFile) {
+    //   toast({ title: "Please upload asset", variant: "destructive" });
+    //   return;
+    // }
 
     try {
       const formData = new FormData();
-      const res = await fetch(assetContent);
-      const blob = await res.blob();
-
-      formData.append("file", blob, assetName || "image.jpg");
-      formData.append("description", validationRules || "Validate this image");
+      // const res = await fetch(assetContent);
+      // const blob = await res.blob();
+      if (!selectedFile && assetType !== "text") {
+        toast({ title: "No file selected", variant: "destructive" });
+        return;
+      }
+      // formData.append("file", blob, assetName || "image.jpg");
+      formData.append("file", selectedFile);
+      formData.append("description", validationRules || "Validate this");
       formData.append("assetType", assetType);
     // const endpoint = "/api/validate";
     const endpointMap: Record<string, string> = {
@@ -341,8 +347,8 @@ function PlaygroundTab({ projectId, projectType }: { projectId: number, projectT
   }
 
   //existing flow
-  if (!assetContent) {
-    toast({ title: "Asset content is required", variant: "destructive" });
+  if (!selectedFile) {
+    toast({ title: "Asset file is required", variant: "destructive" });
     return;
   }
 

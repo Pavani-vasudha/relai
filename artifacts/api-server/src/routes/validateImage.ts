@@ -8,6 +8,19 @@ import { pool } from "../lib/db";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
+function getContentType(file: Express.Multer.File, assetType: string) {
+  
+  if (assetType === "audio") {
+    if (file.mimetype === "audio/mp4") return "audio/x-m4a";
+    return file.mimetype;
+  }
+
+  if (assetType === "image") return file.mimetype;
+  if (assetType === "video") return file.mimetype;
+  if (assetType === "text") return "text/plain";
+
+  return file.mimetype;
+}
 router.post("/", upload.single("file"), async (req, res) => {
   try {
     const description = req.body.description;
@@ -23,6 +36,7 @@ router.post("/", upload.single("file"), async (req, res) => {
       "https://asset-validation.onrender.com/parse-requirements",
       {
         project_description: description,
+        target_modality: "any",
       }
     );
 
@@ -30,8 +44,16 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     //api call2
     const formData = new FormData();
-    formData.append("file", fs.createReadStream(file.path));
+    // formData.append("file", fs.createReadStream(file.path));
+    formData.append("file", fs.createReadStream(file.path), {
+      filename: file.originalname,
+      // contentType: file.mimetype,
+      contentType: getContentType(file, assetType),
+    });
+    // const parsedData = api1Res.data;
+    // const modalityData = parsedData[assetType];
     formData.append("project_description", JSON.stringify(api1Data));
+    // formData.append("project_description", JSON.stringify(modalityData));
 
     const endpointMap: Record<string, string> = {
       image: "image-check",
